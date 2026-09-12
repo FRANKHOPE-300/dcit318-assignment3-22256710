@@ -1,0 +1,499 @@
+using System;
+using System.Collections.Generic;
+
+// ============================================================
+// a. Marker Interface for Inventory Items
+// ============================================================
+
+public interface IInventoryItem
+{
+    int Id { get; }
+    string Name { get; }
+    int Quantity { get; set; }
+}
+
+// ============================================================
+// b. ElectronicItem
+// ============================================================
+
+public class ElectronicItem : IInventoryItem
+{
+    public int Id { get; }
+    public string Name { get; }
+    public int Quantity { get; set; }
+    public string Brand { get; }
+    public int WarrantyMonths { get; }
+
+    public ElectronicItem(
+        int id,
+        string name,
+        int quantity,
+        string brand,
+        int warrantyMonths)
+    {
+        Id = id;
+        Name = name;
+        Quantity = quantity;
+        Brand = brand;
+        WarrantyMonths = warrantyMonths;
+    }
+}
+
+// ============================================================
+// c. GroceryItem
+// ============================================================
+
+public class GroceryItem : IInventoryItem
+{
+    public int Id { get; }
+    public string Name { get; }
+    public int Quantity { get; set; }
+    public DateTime ExpiryDate { get; }
+
+    public GroceryItem(
+        int id,
+        string name,
+        int quantity,
+        DateTime expiryDate)
+    {
+        Id = id;
+        Name = name;
+        Quantity = quantity;
+        ExpiryDate = expiryDate;
+    }
+}
+
+// ============================================================
+// e. Custom Exceptions
+// ============================================================
+
+public class DuplicateItemException : Exception
+{
+    public DuplicateItemException(string message)
+        : base(message)
+    {
+    }
+}
+
+public class ItemNotFoundException : Exception
+{
+    public ItemNotFoundException(string message)
+        : base(message)
+    {
+    }
+}
+
+public class InvalidQuantityException : Exception
+{
+    public InvalidQuantityException(string message)
+        : base(message)
+    {
+    }
+}
+
+// ============================================================
+// d. Generic Inventory Repository
+// ============================================================
+
+public class InventoryRepository<T>
+    where T : IInventoryItem
+{
+    // Dictionary uses the item ID as the key
+    private Dictionary<int, T> _items =
+        new Dictionary<int, T>();
+
+    // Add item
+    public void AddItem(T item)
+    {
+        if (_items.ContainsKey(item.Id))
+        {
+            throw new DuplicateItemException(
+                $"An item with ID {item.Id} already exists.");
+        }
+
+        if (item.Quantity < 0)
+        {
+            throw new InvalidQuantityException(
+                $"Quantity for item '{item.Name}' cannot be negative.");
+        }
+
+        _items.Add(item.Id, item);
+    }
+
+    // Get item by ID
+    public T GetItemById(int id)
+    {
+        if (!_items.TryGetValue(id, out T? item))
+        {
+            throw new ItemNotFoundException(
+                $"Item with ID {id} was not found.");
+        }
+
+        return item;
+    }
+
+    // Remove item
+    public void RemoveItem(int id)
+    {
+        if (!_items.ContainsKey(id))
+        {
+            throw new ItemNotFoundException(
+                $"Cannot remove item. Item with ID {id} was not found.");
+        }
+
+        _items.Remove(id);
+    }
+
+    // Get all items
+    public List<T> GetAllItems()
+    {
+        return new List<T>(_items.Values);
+    }
+
+    // Update quantity
+    public void UpdateQuantity(int id, int newQuantity)
+    {
+        if (newQuantity < 0)
+        {
+            throw new InvalidQuantityException(
+                "Quantity cannot be negative.");
+        }
+
+        T item = GetItemById(id);
+
+        item.Quantity = newQuantity;
+    }
+}
+
+// ============================================================
+// f. Warehouse Manager
+// ============================================================
+
+public class WareHouseManager
+{
+    private InventoryRepository<ElectronicItem> _electronics;
+    private InventoryRepository<GroceryItem> _groceries;
+
+    public WareHouseManager()
+    {
+        _electronics =
+            new InventoryRepository<ElectronicItem>();
+
+        _groceries =
+            new InventoryRepository<GroceryItem>();
+    }
+
+    // --------------------------------------------------------
+    // Seed data
+    // --------------------------------------------------------
+
+    public void SeedData()
+    {
+        try
+        {
+            // Electronic items
+            _electronics.AddItem(
+                new ElectronicItem(
+                    101,
+                    "Laptop",
+                    10,
+                    "Dell",
+                    24));
+
+            _electronics.AddItem(
+                new ElectronicItem(
+                    102,
+                    "Smartphone",
+                    20,
+                    "Samsung",
+                    12));
+
+            _electronics.AddItem(
+                new ElectronicItem(
+                    103,
+                    "Television",
+                    5,
+                    "LG",
+                    24));
+
+            // Grocery items
+            _groceries.AddItem(
+                new GroceryItem(
+                    201,
+                    "Milk",
+                    30,
+                    new DateTime(2026, 10, 15)));
+
+            _groceries.AddItem(
+                new GroceryItem(
+                    202,
+                    "Bread",
+                    25,
+                    new DateTime(2026, 9, 20)));
+
+            _groceries.AddItem(
+                new GroceryItem(
+                    203,
+                    "Rice",
+                    50,
+                    new DateTime(2027, 5, 10)));
+
+            Console.WriteLine("Seed data added successfully.");
+        }
+        catch (DuplicateItemException ex)
+        {
+            Console.WriteLine($"Duplicate error: {ex.Message}");
+        }
+        catch (InvalidQuantityException ex)
+        {
+            Console.WriteLine($"Quantity error: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Unexpected error: {ex.Message}");
+        }
+    }
+
+    // --------------------------------------------------------
+    // Print all items - Generic method
+    // --------------------------------------------------------
+
+    public void PrintAllItems<T>(
+        InventoryRepository<T> repo)
+        where T : IInventoryItem
+    {
+        List<T> items = repo.GetAllItems();
+
+        foreach (T item in items)
+        {
+            Console.WriteLine(
+                $"ID: {item.Id} | " +
+                $"Name: {item.Name} | " +
+                $"Quantity: {item.Quantity}");
+
+            // Display additional details for electronics
+            if (item is ElectronicItem electronic)
+            {
+                Console.WriteLine(
+                    $"   Brand: {electronic.Brand} | " +
+                    $"Warranty: {electronic.WarrantyMonths} months");
+            }
+
+            // Display additional details for groceries
+            if (item is GroceryItem grocery)
+            {
+                Console.WriteLine(
+                    $"   Expiry Date: " +
+                    $"{grocery.ExpiryDate:yyyy-MM-dd}");
+            }
+        }
+    }
+
+    // --------------------------------------------------------
+    // Increase stock - Generic method
+    // --------------------------------------------------------
+
+    public void IncreaseStock<T>(
+        InventoryRepository<T> repo,
+        int id,
+        int quantity)
+        where T : IInventoryItem
+    {
+        try
+        {
+            if (quantity < 0)
+            {
+                throw new InvalidQuantityException(
+                    "Stock increase amount cannot be negative.");
+            }
+
+            T item = repo.GetItemById(id);
+
+            int newQuantity = item.Quantity + quantity;
+
+            repo.UpdateQuantity(id, newQuantity);
+
+            Console.WriteLine(
+                $"Stock updated successfully. " +
+                $"{item.Name} now has {item.Quantity} units.");
+        }
+        catch (ItemNotFoundException ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        catch (InvalidQuantityException ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Unexpected error: {ex.Message}");
+        }
+    }
+
+    // --------------------------------------------------------
+    // Remove item - Generic method
+    // --------------------------------------------------------
+
+    public void RemoveItemById<T>(
+        InventoryRepository<T> repo,
+        int id)
+        where T : IInventoryItem
+    {
+        try
+        {
+            repo.RemoveItem(id);
+
+            Console.WriteLine(
+                $"Item with ID {id} removed successfully.");
+        }
+        catch (ItemNotFoundException ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Unexpected error: {ex.Message}");
+        }
+    }
+
+    // --------------------------------------------------------
+    // Test duplicate item
+    // --------------------------------------------------------
+
+    public void TestDuplicateItem()
+    {
+        try
+        {
+            _electronics.AddItem(
+                new ElectronicItem(
+                    101,
+                    "Another Laptop",
+                    5,
+                    "HP",
+                    12));
+        }
+        catch (DuplicateItemException ex)
+        {
+            Console.WriteLine(
+                $"Duplicate Item Error: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"Unexpected Error: {ex.Message}");
+        }
+    }
+
+    // --------------------------------------------------------
+    // Test removing non-existent item
+    // --------------------------------------------------------
+
+    public void TestRemoveNonExistentItem()
+    {
+        try
+        {
+            _groceries.RemoveItem(999);
+        }
+        catch (ItemNotFoundException ex)
+        {
+            Console.WriteLine(
+                $"Item Not Found Error: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"Unexpected Error: {ex.Message}");
+        }
+    }
+
+    // --------------------------------------------------------
+    // Test invalid quantity
+    // --------------------------------------------------------
+
+    public void TestInvalidQuantity()
+    {
+        try
+        {
+            _electronics.UpdateQuantity(101, -50);
+        }
+        catch (InvalidQuantityException ex)
+        {
+            Console.WriteLine(
+                $"Invalid Quantity Error: {ex.Message}");
+        }
+        catch (ItemNotFoundException ex)
+        {
+            Console.WriteLine(
+                $"Item Not Found Error: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"Unexpected Error: {ex.Message}");
+        }
+    }
+
+    // --------------------------------------------------------
+    // Main application flow
+    // --------------------------------------------------------
+
+    public void Run()
+    {
+        // ii. Seed data
+        SeedData();
+
+        Console.WriteLine();
+
+        // iii. Print grocery items
+        Console.WriteLine("===== GROCERY INVENTORY =====");
+        PrintAllItems(_groceries);
+
+        Console.WriteLine();
+
+        // iv. Print electronic items
+        Console.WriteLine("===== ELECTRONICS INVENTORY =====");
+        PrintAllItems(_electronics);
+
+        Console.WriteLine();
+
+        // v. Test duplicate item
+        Console.WriteLine("===== TEST DUPLICATE ITEM =====");
+        TestDuplicateItem();
+
+        Console.WriteLine();
+
+        // Test non-existent item
+        Console.WriteLine("===== TEST NON-EXISTENT ITEM =====");
+        TestRemoveNonExistentItem();
+
+        Console.WriteLine();
+
+        // Test invalid quantity
+        Console.WriteLine("===== TEST INVALID QUANTITY =====");
+        TestInvalidQuantity();
+
+        Console.WriteLine();
+
+        // Example of successfully increasing stock
+        Console.WriteLine("===== INCREASE STOCK =====");
+        IncreaseStock(_electronics, 101, 5);
+    }
+}
+
+// ============================================================
+// Main Program
+// ============================================================
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // i. Instantiate WareHouseManager
+        WareHouseManager manager =
+            new WareHouseManager();
+
+        // Run the complete application
+        manager.Run();
+    }
+}
