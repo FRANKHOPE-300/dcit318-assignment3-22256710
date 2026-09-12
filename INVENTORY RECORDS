@@ -1,0 +1,289 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text.Json;
+
+// ============================================================
+// b. Marker Interface for Inventory Entities
+// ============================================================
+
+public interface IInventoryEntity
+{
+    int Id { get; }
+}
+
+// ============================================================
+// a. Immutable Inventory Record
+// ============================================================
+
+public record InventoryItem(
+    int Id,
+    string Name,
+    int Quantity,
+    DateTime DateAdded
+) : IInventoryEntity;
+
+
+// ============================================================
+// c. Generic Inventory Logger
+// ============================================================
+
+public class InventoryLogger<T>
+    where T : IInventoryEntity
+{
+    private List<T> _log;
+    private string _filePath;
+
+    public InventoryLogger(string filePath)
+    {
+        _log = new List<T>();
+        _filePath = filePath;
+    }
+
+    // Add an item to the log
+    public void Add(T item)
+    {
+        _log.Add(item);
+    }
+
+    // Return all logged items
+    public List<T> GetAll()
+    {
+        return new List<T>(_log);
+    }
+
+    // Save all items to a JSON file
+    public void SaveToFile()
+    {
+        try
+        {
+            JsonSerializerOptions options =
+                new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                };
+
+            string json =
+                JsonSerializer.Serialize(_log, options);
+
+            // Use StreamWriter with using statement
+            using (StreamWriter writer =
+                   new StreamWriter(_filePath))
+            {
+                writer.Write(json);
+            }
+
+            Console.WriteLine(
+                $"Inventory data saved successfully to {_filePath}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Console.WriteLine(
+                $"Access error while saving file: {ex.Message}");
+        }
+        catch (IOException ex)
+        {
+            Console.WriteLine(
+                $"File error while saving data: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"Unexpected error while saving: {ex.Message}");
+        }
+    }
+
+    // Load items from JSON file
+    public void LoadFromFile()
+    {
+        try
+        {
+            // Check whether the file exists
+            if (!File.Exists(_filePath))
+            {
+                Console.WriteLine(
+                    "Inventory file does not exist.");
+                return;
+            }
+
+            // Use StreamReader with using statement
+            using (StreamReader reader =
+                   new StreamReader(_filePath))
+            {
+                string json = reader.ReadToEnd();
+
+                List<T>? loadedItems =
+                    JsonSerializer.Deserialize<List<T>>(json);
+
+                if (loadedItems != null)
+                {
+                    _log = loadedItems;
+                }
+            }
+
+            Console.WriteLine(
+                "Inventory data loaded successfully.");
+        }
+        catch (JsonException ex)
+        {
+            Console.WriteLine(
+                $"Invalid inventory data: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Console.WriteLine(
+                $"Access error while loading file: {ex.Message}");
+        }
+        catch (IOException ex)
+        {
+            Console.WriteLine(
+                $"File error while loading data: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"Unexpected error while loading: {ex.Message}");
+        }
+    }
+}
+
+
+// ============================================================
+// f. InventoryApp
+// ============================================================
+
+public class InventoryApp
+{
+    private InventoryLogger<InventoryItem> _logger;
+
+    private const string FilePath = "inventory.json";
+
+    public InventoryApp()
+    {
+        _logger =
+            new InventoryLogger<InventoryItem>(FilePath);
+    }
+
+    // Add sample inventory data
+    public void SeedSampleData()
+    {
+        _logger.Add(
+            new InventoryItem(
+                101,
+                "Laptop",
+                10,
+                new DateTime(2026, 9, 1)));
+
+        _logger.Add(
+            new InventoryItem(
+                102,
+                "Office Chair",
+                15,
+                new DateTime(2026, 9, 2)));
+
+        _logger.Add(
+            new InventoryItem(
+                103,
+                "Keyboard",
+                25,
+                new DateTime(2026, 9, 3)));
+
+        _logger.Add(
+            new InventoryItem(
+                104,
+                "Monitor",
+                12,
+                new DateTime(2026, 9, 4)));
+
+        _logger.Add(
+            new InventoryItem(
+                105,
+                "Mouse",
+                30,
+                new DateTime(2026, 9, 5)));
+
+        Console.WriteLine(
+            "Sample inventory data added.");
+    }
+
+    // Save data to file
+    public void SaveData()
+    {
+        _logger.SaveToFile();
+    }
+
+    // Load data from file
+    public void LoadData()
+    {
+        _logger.LoadFromFile();
+    }
+
+    // Print all inventory items
+    public void PrintAllItems()
+    {
+        Console.WriteLine();
+        Console.WriteLine("===== INVENTORY ITEMS =====");
+
+        List<InventoryItem> items =
+            _logger.GetAll();
+
+        if (items.Count == 0)
+        {
+            Console.WriteLine("No inventory items found.");
+            return;
+        }
+
+        foreach (InventoryItem item in items)
+        {
+            Console.WriteLine(
+                $"ID: {item.Id} | " +
+                $"Name: {item.Name} | " +
+                $"Quantity: {item.Quantity} | " +
+                $"Date Added: " +
+                $"{item.DateAdded:yyyy-MM-dd}");
+        }
+    }
+}
+
+
+// ============================================================
+// g. Main Application
+// ============================================================
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        Console.WriteLine("===== INVENTORY SYSTEM =====");
+        Console.WriteLine();
+
+        // Create the first application session
+        InventoryApp app = new InventoryApp();
+
+        // Seed sample data
+        app.SeedSampleData();
+
+        // Save data to disk
+        app.SaveData();
+
+        Console.WriteLine();
+        Console.WriteLine(
+            "Simulating a new application session...");
+
+        // ----------------------------------------------------
+        // Clear memory by removing the reference to the first
+        // application object.
+        // ----------------------------------------------------
+
+        app = null!;
+
+        // Create a new application instance
+        InventoryApp newApp = new InventoryApp();
+
+        // Load the previously saved data
+        newApp.LoadData();
+
+        // Print recovered inventory
+        newApp.PrintAllItems();
+    }
+}
