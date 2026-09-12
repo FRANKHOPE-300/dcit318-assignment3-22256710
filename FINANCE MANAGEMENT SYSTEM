@@ -1,0 +1,189 @@
+using System;
+using System.Collections.Generic;
+
+// a. Record representing financial transaction data
+public record Transaction(
+    int Id,
+    DateTime Date,
+    decimal Amount,
+    string Category
+);
+
+// b. Interface for transaction processing
+public interface ITransactionProcessor
+{
+    void Process(Transaction transaction);
+}
+
+// c. Concrete transaction processors
+
+public class BankTransferProcessor : ITransactionProcessor
+{
+    public void Process(Transaction transaction)
+    {
+        Console.WriteLine(
+            $"Bank Transfer processed: Amount = {transaction.Amount:C}, " +
+            $"Category = {transaction.Category}");
+    }
+}
+
+public class MobileMoneyProcessor : ITransactionProcessor
+{
+    public void Process(Transaction transaction)
+    {
+        Console.WriteLine(
+            $"Mobile Money processed: Amount = {transaction.Amount:C}, " +
+            $"Category = {transaction.Category}");
+    }
+}
+
+public class CryptoWalletProcessor : ITransactionProcessor
+{
+    public void Process(Transaction transaction)
+    {
+        Console.WriteLine(
+            $"Crypto Wallet processed: Amount = {transaction.Amount:C}, " +
+            $"Category = {transaction.Category}");
+    }
+}
+
+// d. Base Account class
+public class Account
+{
+    public string AccountNumber { get; }
+
+    public decimal Balance { get; protected set; }
+
+    public Account(string accountNumber, decimal initialBalance)
+    {
+        AccountNumber = accountNumber;
+        Balance = initialBalance;
+    }
+
+    public virtual void ApplyTransaction(Transaction transaction)
+    {
+        Balance -= transaction.Amount;
+    }
+}
+
+// e. Sealed specialized SavingsAccount class
+public sealed class SavingsAccount : Account
+{
+    public SavingsAccount(string accountNumber, decimal initialBalance)
+        : base(accountNumber, initialBalance)
+    {
+    }
+
+    public override void ApplyTransaction(Transaction transaction)
+    {
+        if (transaction.Amount > Balance)
+        {
+            Console.WriteLine("Insufficient funds");
+        }
+        else
+        {
+            Balance -= transaction.Amount;
+
+            Console.WriteLine(
+                $"Transaction applied successfully. " +
+                $"New balance: {Balance:C}");
+        }
+    }
+}
+
+// f. FinanceApp class
+public class FinanceApp
+{
+    private List<Transaction> _transactions = new List<Transaction>();
+
+    public void Run()
+    {
+        // i. Create a SavingsAccount with an initial balance of 1000
+        SavingsAccount account =
+            new SavingsAccount("ACC-001", 1000m);
+
+        Console.WriteLine($"Account Number: {account.AccountNumber}");
+        Console.WriteLine($"Initial Balance: {account.Balance:C}");
+        Console.WriteLine();
+
+        // ii. Create three Transaction records
+        Transaction transaction1 = new Transaction(
+            1,
+            DateTime.Now,
+            150m,
+            "Groceries"
+        );
+
+        Transaction transaction2 = new Transaction(
+            2,
+            DateTime.Now,
+            200m,
+            "Utilities"
+        );
+
+        Transaction transaction3 = new Transaction(
+            3,
+            DateTime.Now,
+            100m,
+            "Entertainment"
+        );
+
+        // Create processors
+        ITransactionProcessor mobileMoneyProcessor =
+            new MobileMoneyProcessor();
+
+        ITransactionProcessor bankTransferProcessor =
+            new BankTransferProcessor();
+
+        ITransactionProcessor cryptoWalletProcessor =
+            new CryptoWalletProcessor();
+
+        // iii & iv. Process and apply each transaction
+
+        Console.WriteLine("Processing Transaction 1:");
+        mobileMoneyProcessor.Process(transaction1);
+        account.ApplyTransaction(transaction1);
+        _transactions.Add(transaction1);
+
+        Console.WriteLine();
+
+        Console.WriteLine("Processing Transaction 2:");
+        bankTransferProcessor.Process(transaction2);
+        account.ApplyTransaction(transaction2);
+        _transactions.Add(transaction2);
+
+        Console.WriteLine();
+
+        Console.WriteLine("Processing Transaction 3:");
+        cryptoWalletProcessor.Process(transaction3);
+        account.ApplyTransaction(transaction3);
+        _transactions.Add(transaction3);
+
+        // Display final information
+        Console.WriteLine();
+        Console.WriteLine("Final Account Balance: " +
+                          $"{account.Balance:C}");
+
+        Console.WriteLine();
+        Console.WriteLine("Transactions Stored:");
+
+        foreach (Transaction transaction in _transactions)
+        {
+            Console.WriteLine(
+                $"ID: {transaction.Id}, " +
+                $"Date: {transaction.Date}, " +
+                $"Amount: {transaction.Amount:C}, " +
+                $"Category: {transaction.Category}");
+        }
+    }
+}
+
+// Main application
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        FinanceApp app = new FinanceApp();
+        app.Run();
+    }
+}
